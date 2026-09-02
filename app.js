@@ -333,12 +333,9 @@ function mountCam(item, startFn){
   ui.overlayBtn.addEventListener('click', async ()=>{
     ui.overlayBtn.disabled=true; ui.overlayBtn.innerHTML='<div class="spin"></div>';
     try{
-      // ขอกล้องเป็น "แนวตั้ง" ให้ตรงกับจอ → เต็มจอไม่ซูมไม่มีขอบดำ (มือถือ) ; เดสก์ท็อปกล้องแนวนอนจะ cover ครอปข้างให้เต็ม
-      const portrait = window.innerHeight >= window.innerWidth;
-      const vcon = portrait ? {facingMode:'user',width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:0.5625}}
-                            : {facingMode:'user',width:{ideal:1280},height:{ideal:720}};
-      let stream; try{ stream=await getCam({video:vcon,audio:false}); }
-      catch(e){ stream=await getCam({video:{facingMode:'user'},audio:false}); }
+      // ใช้ค่ากล้องเริ่มต้นของเครื่อง (ไม่บังคับความละเอียด/อัตราส่วน) → ได้ FOV ปกติ ไม่ถูกครอปจนซูม
+      let stream; try{ stream=await getCam({video:{facingMode:'user'},audio:false}); }
+      catch(e){ stream=await getCam({video:true,audio:false}); }
       ui.video.srcObject=stream; await ui.video.play();
       await new Promise(r=>{ if(ui.video.videoWidth) r(); else ui.video.onloadedmetadata=r; });
       syncCanvas(ui.canvas);          // ขนาด canvas = ขนาดที่แสดงจริง → ข้อความ/ภาพไม่ยืด/ไม่เพี้ยน
