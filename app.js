@@ -165,10 +165,9 @@ SCREENS.intro=function(){
       h('div',{style:{fontSize:'18px',fontWeight:800,color:'#1B3B9B',marginBottom:'10px'},html:'🧠 โรคหลอดเลือดสมองคืออะไร?'}),
       h('p',{style:{fontSize:'14px',lineHeight:1.7,color:'#444',marginBottom:'12px'}},'โรคหลอดเลือดสมอง หรือ Stroke เกิดขึ้นเมื่อหลอดเลือดในสมองตีบ อุดตัน หรือแตก ทำให้เนื้อสมองขาดออกซิเจนและถูกทำลาย เป็นภาวะฉุกเฉินที่ต้องรีบรักษา'),
       h('div',{style:{background:'#fff8f0',borderLeft:'4px solid #F5831F',borderRadius:'8px',padding:'12px 14px',marginBottom:'14px',fontSize:'13px',color:'#333',lineHeight:1.6},html:'⚠️ ทุก <b>1 นาที</b> ที่สมองขาดเลือด เซลล์สมองตายราว <b>1.9 ล้านเซลล์</b> — ยิ่งรักษาเร็ว ยิ่งลดความพิการ'}),
-      h('div',{style:{display:'flex',gap:'8px',marginBottom:'14px'}}, stat('3','ชั่วโมง Golden Period'), stat('1669','เบอร์ฉุกเฉิน'), stat('6','สัญญาณ BEFAST')),
+      h('div',{style:{display:'flex',gap:'8px',marginBottom:'14px'}}, stat('4.5','ชั่วโมง Golden Period'), stat('1669','เบอร์ฉุกเฉิน')),
       card('🔴',false,'Ischemic Stroke','หลอดเลือดตีบ/อุดตัน พบ ~80% ของผู้ป่วย'),
-      card('💥',true,'Hemorrhagic Stroke','หลอดเลือดสมองแตก อันตรายถึงชีวิต'),
-      h('div',{class:'tip',style:{marginTop:'4px'},html:'ℹ️ <b>BE-FAST</b> คือหลักสังเกตอาการเตือน: Balance, Eyes, Face, Arms, Speech, Time'})
+      card('💥',true,'Hemorrhagic Stroke','หลอดเลือดสมองแตก อันตรายถึงชีวิต')
     ),
     h('div',{style:{background:'#fff',padding:'6px 16px calc(16px + env(safe-area-inset-bottom))'}},
       h('button',{class:'btn',onclick:()=>go(3),html:'เรียนรู้สัญญาณ B.E.F.A.S.T '+ICON.next})
@@ -289,7 +288,7 @@ const DETAIL_BUILDERS={
         h('div',{class:'font-n',style:{fontSize:'54px',fontWeight:900,lineHeight:1}},'1669'),
         h('div',{style:{fontSize:'13px',opacity:.9,marginTop:'4px'}},'สายด่วนฉุกเฉิน — โทรทันที!')),
       h('div',{style:{fontSize:'14px',fontWeight:700,color:'#1B3B9B',marginBottom:'8px'}},'⏱️ สิ่งที่ควรทำทันที'),
-      ...[['บันทึกเวลา','จดเวลาที่เริ่มมีอาการ'],['โทร 1669','แจ้งว่าสงสัยโรคหลอดเลือดสมอง'],['ห้ามให้กินอาหาร/ยา','ก่อนถึงโรงพยาบาล'],['รีบไป รพ. ใกล้บ้าน','ภายใน 3 ชม. = Golden Period']].map((r,i)=>
+      ...[['บันทึกเวลา','จดเวลาที่เริ่มมีอาการ'],['โทร 1669','แจ้งว่าสงสัยโรคหลอดเลือดสมอง'],['ห้ามให้กินอาหาร/ยา','ก่อนถึงโรงพยาบาล'],['รีบไป รพ. ใกล้บ้าน','ภายใน 4.5 ชม. = Golden Period']].map((r,i)=>
         h('div',{style:{background:'#fff',borderRadius:'13px',padding:'12px 14px',marginBottom:'8px',display:'flex',gap:'12px',alignItems:'center',boxShadow:'0 2px 8px rgba(0,0,0,.05)'}},
           h('div',{class:'font-n',style:{width:'34px',height:'34px',borderRadius:'50%',background:'#1B3B9B',color:'#fff',fontWeight:800,fontSize:'15px',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},i+1),
           h('div',{style:{fontSize:'13px',color:'#333',lineHeight:1.5},html:'<b style="color:#1B3B9B">'+r[0]+'</b><br>'+r[1]}))),
@@ -334,7 +333,12 @@ function mountCam(item, startFn){
   ui.overlayBtn.addEventListener('click', async ()=>{
     ui.overlayBtn.disabled=true; ui.overlayBtn.innerHTML='<div class="spin"></div>';
     try{
-      const stream=await getCam({video:{facingMode:'user',width:{ideal:1280},height:{ideal:720}},audio:false});
+      // ขอกล้องเป็น "แนวตั้ง" ให้ตรงกับจอ → เต็มจอไม่ซูมไม่มีขอบดำ (มือถือ) ; เดสก์ท็อปกล้องแนวนอนจะ cover ครอปข้างให้เต็ม
+      const portrait = window.innerHeight >= window.innerWidth;
+      const vcon = portrait ? {facingMode:'user',width:{ideal:1080},height:{ideal:1920},aspectRatio:{ideal:0.5625}}
+                            : {facingMode:'user',width:{ideal:1280},height:{ideal:720}};
+      let stream; try{ stream=await getCam({video:vcon,audio:false}); }
+      catch(e){ stream=await getCam({video:{facingMode:'user'},audio:false}); }
       ui.video.srcObject=stream; await ui.video.play();
       await new Promise(r=>{ if(ui.video.videoWidth) r(); else ui.video.onloadedmetadata=r; });
       syncCanvas(ui.canvas);          // ขนาด canvas = ขนาดที่แสดงจริง → ข้อความ/ภาพไม่ยืด/ไม่เพี้ยน
@@ -373,7 +377,7 @@ function syncCanvas(cv){
   const h=Math.round((cv.clientHeight||cv.parentElement.clientHeight)*dpr);
   if(w>1&&h>1&&(cv.width!==w||cv.height!==h)){ cv.width=w; cv.height=h; }
 }
-// วาดวิดีโอแบบ "cover" (รักษาสัดส่วน ไม่ยืด) + ซูมเข้ากลางเล็กน้อยเพื่อลดความเป็นเลนส์ไวด์ + มิเรอร์
+// วาดวิดีโอแบบ "cover" เต็มจอ (ขอ stream แนวตั้งมาแล้ว จึงเต็มพอดี ไม่ซูม ไม่มีขอบดำ) + มิเรอร์
 // คืนค่า mapping ไว้แปลงพิกัด landmark -> พิกัด canvas
 function drawCover(ctx, video, W, H, zoom, mirror){
   const vw=video.videoWidth, vh=video.videoHeight; if(!vw||!vh) return null;
@@ -387,7 +391,7 @@ function drawCover(ctx, video, W, H, zoom, mirror){
 }
 // แปลง landmark (normalized 0..1 ของเฟรมวิดีโอ) -> พิกัด canvas ตาม mapping ของ drawCover
 function mapPt(m,nx,ny){ const x=m.dx+nx*m.dw; return { x: m.mirror ? (m.W-x) : x, y: m.dy+ny*m.dh }; }
-const CAM_ZOOM_FACE=1.2, CAM_ZOOM_BALANCE=1.15, CAM_ZOOM_EYES=1.15, CAM_ZOOM_ARMS=1.0;
+const CAM_ZOOM_FACE=1.0, CAM_ZOOM_BALANCE=1.0, CAM_ZOOM_EYES=1.0, CAM_ZOOM_ARMS=1.0;
 
 /* ---------- B: Balance / dizziness (ค่าคงที่ ผู้ใช้ปรับไม่ได้) ---------- */
 function startBalance(ui){
@@ -427,11 +431,19 @@ function startBalance(ui){
 
 /* ---------- E: Eyes (ค่าคงที่ ผู้ใช้ปรับไม่ได้) ---------- */
 function startEyes(ui, mode){
-  const {video,canvas,setStatus}=ui;
+  const {video,canvas,setStatus,controls}=ui;
   const cctx=canvas.getContext('2d');
   const label={blur:'👁️ จำลอง: ภาพมัว (Blur)',hemi:'👁️ จำลอง: มองเห็นครึ่งซีก (Hemianopia)',double:'👁️ จำลอง: ภาพซ้อน (Double Vision)'};
   setStatus(label[mode]||label.blur);
-  const hemiSide='right';  // ค่าคงที่
+  let hemiSide='right';
+  if(mode==='hemi'){   // ให้ผู้ใช้เลือกบังซ้าย/ขวาได้
+    const sw=h('div',{class:'seg'});
+    [['left','บังด้านซ้าย'],['right','บังด้านขวา']].forEach(([k,l])=>{
+      const b=h('button',{class:hemiSide===k?'on':'',onclick:()=>{hemiSide=k;[...sw.children].forEach(c=>c.className='');b.className='on';}},l);
+      sw.append(b);
+    });
+    controls.append(sw);
+  }
   function frame(){
     syncCanvas(canvas);
     const W=canvas.width,H=canvas.height;
@@ -461,12 +473,19 @@ function startEyes(ui, mode){
 let _visionMod=null, _faceLM=null, _poseLM=null;
 const MPV='0.10.20';
 async function loadVision(){ if(_visionMod) return _visionMod; _visionMod=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+MPV); return _visionMod; }
+const FACE_URL='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const POSE_URL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 async function getFaceLM(){ if(_faceLM) return _faceLM; const v=await loadVision();
   const fs=await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+MPV+'/wasm');
-  _faceLM=await v.FaceLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'GPU'},runningMode:'VIDEO',numFaces:1}); return _faceLM; }
+  const mk=d=>v.FaceLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:FACE_URL,delegate:d},runningMode:'VIDEO',numFaces:1});
+  try{ _faceLM=await mk('GPU'); }catch(e){ _faceLM=await mk('CPU'); }  // GPU ไม่ได้ → ลอง CPU
+  return _faceLM; }
 async function getPoseLM(){ if(_poseLM) return _poseLM; const v=await loadVision();
   const fs=await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@'+MPV+'/wasm');
-  _poseLM=await v.PoseLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',delegate:'GPU'},runningMode:'VIDEO',numPoses:1}); return _poseLM; }
+  const mk=d=>v.PoseLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:POSE_URL,delegate:d},runningMode:'VIDEO',numPoses:1});
+  try{ _poseLM=await mk('GPU'); }catch(e){ _poseLM=await mk('CPU'); }
+  return _poseLM; }
+const NET_MSG = (location.protocol==='file:') ? 'ต้องเปิดผ่านลิงก์เว็บ (https) ไม่ใช่เปิดไฟล์ในเครื่อง' : 'โหลดตัวตรวจจับไม่ได้ — ตรวจสอบอินเทอร์เน็ต';
 
 /* ---------- triangle texture-map helper (image warp) ---------- */
 function drawTriTex(ctx,img,s,d){
@@ -503,7 +522,7 @@ function startFace(ui){
   const tmp=document.createElement('canvas'); const tctx=tmp.getContext('2d');
   const side='right'; let lm=null, ready=false, useMP=true;   // ค่าคงที่: ปากตกซีกขวา
   setStatus('😶 กำลังโหลดตัวตรวจจับใบหน้า...');
-  getFaceLM().then(()=>{ready=true;setStatus('😶 จำลอง: ปากเบี้ยว/หน้าตก — หันหน้าตรงเข้ากล้อง');}).catch(()=>{useMP=false;ready=true;setStatus('😶 โหลดตัวตรวจจับใบหน้าไม่ได้ (ต้องมีเน็ต)');});
+  getFaceLM().then(()=>{ready=true;setStatus('😶 จำลอง: ปากเบี้ยว/หน้าตก — หันหน้าตรงเข้ากล้อง');}).catch(()=>{useMP=false;ready=true;setStatus('😶 '+NET_MSG);});
   let map=null;
   function C(i){ const p=lm[i]; return mapPt(map,p.x,p.y); }
   function frame(){
@@ -542,19 +561,19 @@ function startFace(ui){
         drawTriTex(cctx,tmp,[a,d,c],[A,D,Cc]);
       }
       cctx.setTransform(1,0,0,1,0,0);
-      cctx.strokeStyle='rgba(245,131,31,.95)'; cctx.lineWidth=Math.max(2,H*0.005);
-      cctx.beginPath(); cctx.arc(anchor.x,anchor.y+droopPx*0.6,fh*0.10,0,7); cctx.stroke();
-      cctx.setLineDash([7,6]); cctx.lineWidth=Math.max(1.5,H*0.003); cctx.strokeStyle='rgba(255,255,255,.5)';
-      cctx.beginPath(); cctx.moveTo(cx,nose.y-fh*0.02); cctx.lineTo(cx,chin.y+fh*0.15); cctx.stroke(); cctx.setLineDash([]);
-      labelBox(cctx,'สังเกต: มุมปากซีกนี้ตกกว่าอีกฝั่ง',anchor.x,Math.min(H-H*0.06,anchor.y+droopPx+fh*0.16),Math.round(H*0.028));
-    } else if(ready){
-      cctx.fillStyle='rgba(0,0,0,.5)'; cctx.fillRect(0,H*0.44,W,H*0.13);
-      cctx.fillStyle='#fff'; cctx.textAlign='center'; cctx.font='700 '+Math.round(H*0.03)+'px Sarabun';
-      cctx.fillText('โหลดตัวตรวจจับใบหน้าไม่ได้ — ตรวจสอบอินเทอร์เน็ต', W/2, H*0.51);
-    }
+      // เอาวงกลม/เส้นเปรียบเทียบ/ข้อความบนภาพออก — เหลือเฉพาะเอฟเฟกต์ปากตก
+    } else if(ready){ drawNetError(cctx,W,H); }
     _raf=requestAnimationFrame(frame);
   }
   _raf=requestAnimationFrame(frame);
+}
+// ข้อความแจ้งเตือนโหลดโมเดลไม่ได้ (สองบรรทัด กันข้อความล้นจอ)
+function drawNetError(cctx,W,H){
+  cctx.setTransform(1,0,0,1,0,0);
+  cctx.fillStyle='rgba(0,0,0,.6)'; cctx.fillRect(0,H*0.40,W,H*0.20);
+  cctx.fillStyle='#fff'; cctx.textAlign='center'; cctx.textBaseline='alphabetic'; cctx.font='700 '+Math.round(H*0.03)+'px Sarabun';
+  const lines=(location.protocol==='file:')?['⚠️ เปิดผ่านลิงก์เว็บ (https)','ไม่ใช่เปิดไฟล์ในเครื่อง']:['⚠️ โหลดตัวตรวจจับไม่ได้','ตรวจสอบอินเทอร์เน็ต'];
+  cctx.fillText(lines[0], W/2, H*0.48); cctx.fillText(lines[1], W/2, H*0.48+H*0.05);
 }
 
 /* ---------- A: Arms weakness (realtime overlay) ---------- */
@@ -564,8 +583,8 @@ function startArms(ui){
   let lm=null, ready=false, useMP=true, map=null;
   const weak=Math.random()<0.5?'right':'left'; const weakTxt=weak==='right'?'ขวา':'ซ้าย';
   setStatus('🤲 กำลังโหลดตัวตรวจจับท่าทาง...');
-  controls.append(h('div',{class:'ctl',html:'ยืนให้เห็นช่วงตัว แล้วยกแขนสองข้างขึ้น — สังเกตแขนข้าง<b style="color:#F5831F">'+weakTxt+'</b>ที่จะตกลง'}));
-  getPoseLM().then(()=>{ready=true;setStatus('🤲 จำลอง: แขนข้าง'+weakTxt+'อ่อนแรง — ยกแขนสองข้างขึ้น');}).catch(()=>{useMP=false;ready=true;setStatus('🤲 โหลดตัวตรวจจับท่าทางไม่ได้ (ต้องมีเน็ต)');});
+  controls.append(h('div',{class:'ctl',style:{textAlign:'center'},html:'ยืนให้เห็นช่วงตัว แล้วยกแขนสองข้างขึ้น — สังเกตแขนข้าง<b style="color:#F5831F">'+weakTxt+'</b>ที่จะตกลง'}));
+  getPoseLM().then(()=>{ready=true;setStatus('🤲 จำลอง: แขนข้าง'+weakTxt+'อ่อนแรง — ยกแขนสองข้างขึ้น');}).catch(()=>{useMP=false;ready=true;setStatus('🤲 '+NET_MSG);});
   function P(i){ const p=lm[i]; const q=mapPt(map,p.x,p.y); q.v=p.visibility; return q; }
   function limb(a,b,c,col,wid){ cctx.strokeStyle=col; cctx.lineWidth=wid; cctx.lineCap='round'; cctx.lineJoin='round';
     cctx.beginPath(); cctx.moveTo(a.x,a.y); cctx.lineTo(b.x,b.y); cctx.lineTo(c.x,c.y); cctx.stroke();
@@ -574,17 +593,16 @@ function startArms(ui){
     syncCanvas(canvas);
     const W=canvas.width,H=canvas.height;
     if(useMP&&ready&&_poseLM){ try{ const r=_poseLM.detectForVideo(video,performance.now()); if(r&&r.landmarks&&r.landmarks[0]) lm=r.landmarks[0]; }catch(e){} }
+    // Base layer = กล้องจริง 100% (ไม่หรี่ ไม่วาดหุ่นทึบบังคน) ; Top layer = เส้น AR สั้นๆ เฉพาะแขน
     cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,W,H);
     map=drawCover(cctx,video,W,H,CAM_ZOOM_ARMS,true);
-    cctx.fillStyle='rgba(10,16,44,.82)'; cctx.fillRect(0,0,W,H);
     if(useMP&&lm&&map){
-      const Ls=P(11),Rs=P(12),Le=P(13),Re=P(14),Lw=P(15),Rw=P(16),Lh=P(23),Rh=P(24),nose=P(0);
-      const wid=Math.max(10,H*0.026);
-      cctx.strokeStyle='rgba(255,255,255,.95)'; cctx.lineWidth=wid; cctx.lineCap='round'; cctx.lineJoin='round';
-      cctx.beginPath(); cctx.moveTo(Ls.x,Ls.y); cctx.lineTo(Rs.x,Rs.y); cctx.lineTo(Rh.x,Rh.y); cctx.lineTo(Lh.x,Lh.y); cctx.closePath(); cctx.stroke();
-      const hr=Math.abs(Ls.x-Rs.x)*0.36+10; cctx.beginPath(); cctx.arc(nose.x,nose.y,hr,0,7); cctx.stroke();
+      const Ls=P(11),Rs=P(12),Le=P(13),Re=P(14),Lw=P(15),Rw=P(16);
+      const wid=Math.max(8,H*0.022);
+      // แขนข้างแข็งแรง = วาดเส้นตามจริง (เขียว) เฉพาะแขน
       const strongLeft = weak!=='left';
-      if(strongLeft) limb(Ls,Le,Lw,'#2ee6a6',wid); else limb(Rs,Re,Rw,'#2ee6a6',wid);
+      if(strongLeft) limb(Ls,Le,Lw,'rgba(46,230,166,.95)',wid); else limb(Rs,Re,Rw,'rgba(46,230,166,.95)',wid);
+      // แขนข้างอ่อนแรง (Simulation) = คำนวณพิกัดจำลองให้ดิ่งลงจากไหล่เสมอ แม้ผู้ใช้ยกจริง (แดง)
       const sh = weak==='left'?Ls:Rs;
       const raised = (weak==='left'?(Lw.y<Ls.y-H*0.03):(Rw.y<Rs.y-H*0.03));
       const dir = weak==='left'?1:-1;
@@ -599,10 +617,7 @@ function startArms(ui){
       cctx.fillStyle= raised?'rgba(245,131,31,.96)':'rgba(0,0,0,.55)';
       cctx.beginPath(); (cctx.roundRect?cctx.roundRect(W/2-bw/2,by,bw,bh,10):cctx.rect(W/2-bw/2,by,bw,bh)); cctx.fill();
       cctx.fillStyle='#fff'; cctx.fillText(msg,W/2,by+fs+3);
-    } else if(ready){
-      cctx.fillStyle='#fff'; cctx.textAlign='center'; cctx.font='700 '+Math.round(H*0.03)+'px Sarabun';
-      cctx.fillText('โหลดตัวตรวจจับท่าทางไม่ได้ — ตรวจสอบอินเทอร์เน็ต', W/2, H*0.5);
-    }
+    } else if(ready){ drawNetError(cctx,W,H); }
     _raf=requestAnimationFrame(frame);
   }
   _raf=requestAnimationFrame(frame);
@@ -639,21 +654,19 @@ function launchSpeech(){
   function stopRec(){ if(mediaR&&mediaR.state!=='inactive') mediaR.stop(); recording=false; recBtn.innerHTML='🎤 อัดเสียงอีกครั้ง'; recBtn.style.background=''; updBtns(); }
   recBtn.addEventListener('click',()=>{ if(playing) return; recording?stopRec():startRec(); });
   function playNormal(){ if(!recBuf||recording||playing)return; playing=true; updBtns(); const ac=new (window.AudioContext||window.webkitAudioContext)(); _audio=ac; const s=ac.createBufferSource(); s.buffer=recBuf; s.connect(ac.destination); s.onended=()=>{playing=false;updBtns();}; s.start(); }
-  // "พูดติดขัด": เสียงปกติ (ไม่เปลี่ยน pitch) แต่ยืดยาน เว้นช่วงคิดคำนาน — ไม่สะดุด/ไม่ซ้ำเสียง
+  // "พูดไม่ชัด": จูนตามเสียงตัวอย่าง dysarthria จริง — มัวจัด เน้นย่านต่ำ ตัดพยัญชนะ ฟังไม่รู้เรื่อง + ยืดช้านิดเดียว
   function playSlurred(){ if(!recBuf||recording||playing)return; playing=true; updBtns();
     const ac=new (window.AudioContext||window.webkitAudioContext)(); _audio=ac;
-    const buf=recBuf, total=buf.duration; const out=ac.createGain(); out.connect(ac.destination);
-    let cur=ac.currentTime+0.05, pos=0, lastS=null;
-    function seg(from,dur){ const s=ac.createBufferSource(); s.buffer=buf; const g=ac.createGain(); s.connect(g); g.connect(out);
-      const t0=cur,t1=cur+dur; g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(1,Math.min(t1,t0+0.02));
-      g.gain.setValueAtTime(1,Math.max(t0,t1-0.02)); g.gain.linearRampToValueAtTime(0,t1);
-      s.start(t0,from,dur+0.03); cur=t1; lastS=s; }
-    const piece=0.5;   // เล่นเป็นช่วงๆ ความเร็ว/เสียงปกติ แล้วเว้นช่วงคิดคำ
-    while(pos<total){
-      const dur=Math.min(piece,total-pos); seg(pos,dur); pos+=dur;
-      if(pos<total) cur += (Math.random()<0.65 ? (0.45+Math.random()*0.6) : 0.12);
-    }
-    if(lastS) lastS.onended=()=>{playing=false;updBtns();}; else {playing=false;updBtns();}
+    const s=ac.createBufferSource(); s.buffer=recBuf; s.playbackRate.value=0.9;      // ยืด/ช้าลงเล็กน้อย
+    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=0.9;   // มัวจัด (พลังงานเสียงจริงเกือบทั้งหมด <500Hz)
+    const lp2=ac.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=1500; lp2.Q.value=0.5; // ชันขึ้น
+    const low=ac.createBiquadFilter(); low.type='peaking'; low.frequency.value=300; low.gain.value=5; low.Q.value=0.8; // ดันย่านต่ำ 125–400Hz ที่เด่นในตัวอย่าง
+    const dip=ac.createBiquadFilter(); dip.type='peaking'; dip.frequency.value=2500; dip.gain.value=-13; dip.Q.value=1.0; // กดพยัญชนะ = ฟังไม่รู้เรื่อง
+    const dl=ac.createDelay(); dl.delayTime.value=0.045; const fb=ac.createGain(); fb.gain.value=0.22; dl.connect(fb); fb.connect(dl); // เบลอ/ลิ้นพัน
+    const wet=ac.createGain(); wet.gain.value=0.4; const master=ac.createGain(); master.gain.value=1.5; // ชดเชยพลังงานที่หายไป
+    s.connect(lp); lp.connect(lp2); lp2.connect(low); low.connect(dip); dip.connect(master);
+    dip.connect(dl); dl.connect(wet); wet.connect(master); master.connect(ac.destination);
+    s.onended=()=>{playing=false;updBtns();}; s.start();
   }
   playRaw.addEventListener('click',playNormal); playSlur.addEventListener('click',playSlurred);
   const body=h('div',{class:'grow scroll',style:{padding:'6px 18px 18px',display:'flex',flexDirection:'column'}},
@@ -714,7 +727,7 @@ function launchTime(){
           h('div',{class:'font-n',style:{fontSize:'40px',fontWeight:900,color:'#fff'}},'1669')),
         h('div',{style:{color:'#fff',fontSize:'20px',fontWeight:700}},'กำลังโทรออก...'),
         h('div',{style:{color:'rgba(255,255,255,.6)',fontSize:'13px'}},'สายด่วนการแพทย์ฉุกเฉิน 1669'),
-        h('div',{style:{background:'rgba(245,131,31,.15)',border:'1px solid rgba(245,131,31,.4)',borderRadius:'14px',padding:'14px 16px',color:'#fff',fontSize:'13px',lineHeight:1.7,textAlign:'center',maxWidth:'300px'},html:'⏱️ <b>Golden Period 3 ชั่วโมง</b><br>แจ้งเวลาที่เริ่มมีอาการ และบอกว่าสงสัยโรคหลอดเลือดสมอง'}),
+        h('div',{style:{background:'rgba(245,131,31,.15)',border:'1px solid rgba(245,131,31,.4)',borderRadius:'14px',padding:'14px 16px',color:'#fff',fontSize:'13px',lineHeight:1.7,textAlign:'center',maxWidth:'300px'},html:'⏱️ <b>Golden Period 4.5 ชั่วโมง</b><br>แจ้งเวลาที่เริ่มมีอาการ และบอกว่าสงสัยโรคหลอดเลือดสมอง'}),
         h('button',{class:'btn',style:{width:'auto',padding:'12px 28px',background:'linear-gradient(135deg,#c0392b,#e74c3c)'},onclick:back,html:'📵 วางสาย'})
       ),
       h('div',{class:'disc'},'⚠️ นี่คือการจำลองเท่านั้น — ในสถานการณ์จริงโทร 1669 ได้ทันที'));
