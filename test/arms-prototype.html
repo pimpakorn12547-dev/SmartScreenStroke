@@ -148,34 +148,33 @@ function launchArms(){
     const b=h('button',{class:side===k?'on':'',onclick:()=>{side=k;[...seg.children].forEach(c=>c.className='');b.className='on';replay();}},l);
     seg.append(b);
   });
-  const replayBtn=h('button',{class:'btn sm ghost',html:'↺ เล่นซ้ำ'});
-  const backBtn=h('button',{class:'btn sm blue',html:'‹ กลับ'});
   const statusEl=h('small',null,'กำลังโหลดตัวตรวจจับท่าทาง...');
 
   const top=h('div',{class:'top'},
     h('button',{class:'round',html:'‹',onclick:showIntro}),
     h('div',{style:{textAlign:'center'}},h('b',null,'🤲 จำลองแขนอ่อนแรง'),statusEl),
     h('div',{style:{width:'44px'}}));
-  const bottom=h('div',{class:'bottom'},seg,
-    h('div',{class:'row'},replayBtn,backBtn),
-    h('div',{class:'disc'},'⚠️ สื่อจำลองเพื่อการเรียนรู้เท่านั้น ไม่ใช่การวินิจฉัย'));
-  backBtn.addEventListener('click',showIntro);
+  const bottom=h('div',{class:'bottom'},seg);   // เหลือแค่ปุ่มเลือกซ้าย/ขวา (กลับใช้ปุ่ม ‹ มุมซ้ายบน)
 
   app.append(cam,top,bottom);
 
   // ---- warp state ----
   let lm=null,map=null,ready=false,useMP=true;
   let droopT=0,lastTs=0;
-  function replay(){droopT=0;lastTs=0;}
-  replayBtn.addEventListener('click',replay);
+  function replay(){droopT=0;lastTs=0;}   // เรียกเมื่อสลับซ้าย/ขวา ให้เริ่มจำลองใหม่
 
   const cctx=canvas.getContext('2d');
   const tmp=document.createElement('canvas');const tctx=tmp.getContext('2d');
   function P(i){const p=lm[i];return mapPt(map,p.x,p.y);}
   function banner(msg,warn){
-    const W=canvas.width,H=canvas.height,fs=Math.round(H*0.030);
-    cctx.setTransform(1,0,0,1,0,0);cctx.font='700 '+fs+'px Sarabun';cctx.textAlign='center';cctx.textBaseline='alphabetic';
-    const bw=cctx.measureText(msg).width+28,bh=fs+16,by=H*0.11;
+    const W=canvas.width,H=canvas.height;
+    let fs=Math.round(H*0.030);
+    cctx.setTransform(1,0,0,1,0,0);cctx.textAlign='center';cctx.textBaseline='alphabetic';
+    cctx.font='700 '+fs+'px Sarabun';
+    let tw=cctx.measureText(msg).width;
+    const maxW=W*0.92;                         // ย่อฟอนต์อัตโนมัติถ้าข้อความยาวเกินจอ (กันตัวอักษรล้น)
+    if(tw+28>maxW){ fs=Math.max(12,Math.floor(fs*(maxW-28)/tw)); cctx.font='700 '+fs+'px Sarabun'; tw=cctx.measureText(msg).width; }
+    const bw=Math.min(tw+28,maxW),bh=fs+16,by=H*0.10;
     cctx.fillStyle=warn?'rgba(245,131,31,.96)':'rgba(0,0,0,.55)';cctx.beginPath();
     (cctx.roundRect?cctx.roundRect(W/2-bw/2,by,bw,bh,10):cctx.rect(W/2-bw/2,by,bw,bh));cctx.fill();
     cctx.fillStyle='#fff';cctx.fillText(msg,W/2,by+fs+3);
@@ -213,7 +212,7 @@ function launchArms(){
     const bodyCx=(L.sh.x+R.sh.x)/2;
     const shoulderW=Math.abs(L.sh.x-R.sh.x)||W*0.30;
     const armHalfW=Math.max(W*0.055,shoulderW*0.26);
-    const topY=arm.sh.y-shoulderW*0.10;
+    const topY=arm.sh.y-shoulderW*0.06;
     const bottomY=Math.max(arm.wr.y,arm.hip.y)+shoulderW*0.18;
     const armLen=Math.max(30,bottomY-topY);
     const cxAt=t=>arm.sh.x+(arm.wr.x-arm.sh.x)*Math.max(0,Math.min(1,t));
@@ -232,7 +231,7 @@ function launchArms(){
         const t=(y-topY)/armLen;                    // 0 บน(ไหล่) .. 1 ล่าง(มือ)
         const cx=cxAt(t);
         const wx=Math.exp(-Math.pow((x-cx)/armHalfW,2)*2.2);   // เฉพาะแนวแขน (feather เข้าพื้นหลัง)
-        const wt=Math.pow(Math.max(0,t),1.25);                 // ยิ่งล่างยิ่งตกมาก, ไหล่นิ่ง
+        const wt=0.32+0.68*Math.pow(Math.max(0,t),1.25);       // หัวไหล่เลื่อนลงด้วย (base 0.32) ปลายแขนตกมากสุด
         const w=wt*wx*e;
         const dy=droopMax*w;
         const dx=inwardMax*w*Math.sign(bodyCx-cx);
@@ -247,7 +246,7 @@ function launchArms(){
     }
     cctx.setTransform(1,0,0,1,0,0);
     const sideTxt=side==='left'?'ซ้าย':'ขวา';
-    banner(droopT>0.6?('แขนข้าง'+sideTxt+'อ่อนแรง ตกลง (จำลอง)'):'กำลังจำลองแขนอ่อนแรง...',droopT>0.6);
+    banner(droopT>0.6?('แขน'+sideTxt+'อ่อนแรง (จำลอง)'):'กำลังจำลอง...',droopT>0.6);
     _raf=requestAnimationFrame(frame);
   }
 
