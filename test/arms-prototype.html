@@ -142,7 +142,7 @@ function launchArms(){
 
   // controls — เลือกได้แค่ ซ้าย/ขวา (ค่าอาการตกคงที่ ชัดเจน)
   let side='right';       // ข้างจอที่แขนจะตก (ซ้าย/ขวา ตามที่ผู้ใช้เห็น)
-  const DROOP=0.75;       // ความรุนแรงคงที่ (ตกชัดเจน)
+  const DROOP=0.60;       // ความรุนแรงคงที่ (ลดแรงตกลงอีกนิด)
   const seg=h('div',{class:'seg'});
   [['left','แขนซ้ายตก'],['right','แขนขวาตก']].forEach(([k,l])=>{
     const b=h('button',{class:side===k?'on':'',onclick:()=>{side=k;[...seg.children].forEach(c=>c.className='');b.className='on';replay();}},l);
@@ -209,8 +209,8 @@ function launchArms(){
     const arm=side==='left'?arms[0]:arms[1];
     const bodyCx=(L.sh.x+R.sh.x)/2;
     const shoulderW=Math.abs(L.sh.x-R.sh.x)||W*0.30;
-    const armHalfW=Math.max(W*0.055,shoulderW*0.26);
-    const topY=arm.sh.y-shoulderW*0.22;   // มาร์คสูงขึ้นถึงบนหัวไหล่ (กันไหล่ขาด)
+    const armHalfW=Math.max(W*0.07,shoulderW*0.34);   // กว้างขึ้น = คลุมหัวไหล่ทั้งก้อน (ไม่ใช่แค่ครึ่ง)
+    const topY=arm.sh.y-shoulderW*0.28;   // เริ่มเหนือหัวไหล่ ให้ทั้งหัวไหล่ลงมา
     const bottomY=Math.max(arm.wr.y,arm.hip.y)+shoulderW*0.18;
     const armLen=Math.max(30,bottomY-topY);
     const cxAt=t=>arm.sh.x+(arm.wr.x-arm.sh.x)*Math.max(0,Math.min(1,t));
@@ -228,8 +228,9 @@ function launchArms(){
         src[j].push({x,y});
         const t=(y-topY)/armLen;                    // 0 บน(ไหล่) .. 1 ล่าง(มือ)
         const cx=cxAt(t);
-        const wx=Math.exp(-Math.pow((x-cx)/armHalfW,2)*2.2);   // เฉพาะแนวแขน (feather เข้าพื้นหลัง)
-        const wt=0.40+0.60*Math.pow(Math.max(0,t),1.25);       // หัวไหล่ (บนสุด) เลื่อนลงชัด (base 0.40) ปลายแขนตกมากสุด
+        const wx=Math.exp(-Math.pow((x-cx)/armHalfW,2)*1.8);   // แนวนอนกว้างขึ้น = คลุมหัวไหล่ทั้งก้อน
+        const tf=Math.min(1,t/0.15); const topFeather=tf*tf*(3-2*tf);  // ไล่ 0→1 ช่วงบน (เหนือไหล่/คอ) กันรอยต่อ/ช่องว่าง
+        const wt=topFeather*(0.60+0.40*Math.pow(Math.max(0,t),1.3));    // ทั้งหัวไหล่ลงพร้อมกัน ปลายแขนตกมากสุด
         const w=wt*wx*e;
         const dy=droopMax*w;
         const dx=inwardMax*w*Math.sign(bodyCx-cx);
