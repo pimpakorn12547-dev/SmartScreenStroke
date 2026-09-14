@@ -71,6 +71,7 @@ const PRESET={
   mild:{rate:0.88,lp:1400,muffle:7,nasal:3,notch:-6,consonant:-10,drive:1.3,tremF:5.0,tremD:0.12,comp:3,wet:0.18,master:1.4, warbF:0.8,warbD:0.008,tongue:8, pvF:2.3,pvD:22},
   mid: {rate:0.82,lp:1050,muffle:9,nasal:5,notch:-8,consonant:-14,drive:1.9,tremF:5.5,tremD:0.18,comp:5,wet:0.24,master:1.55,warbF:0.7,warbD:0.011,tongue:11,pvF:1.9,pvD:38},
   sev: {rate:0.78,lp:880, muffle:11,nasal:7,notch:-10,consonant:-17,drive:2.6,tremF:6.0,tremD:0.24,comp:7,wet:0.30,master:1.7, warbF:0.6,warbD:0.014,tongue:14,pvF:1.6,pvD:58},
+  max: {rate:0.72,lp:750, muffle:13,nasal:8,notch:-11,consonant:-19,drive:3.0,tremF:6.5,tremD:0.30,comp:8,wet:0.34,master:1.85,warbF:0.5,warbD:0.020,tongue:17,pvF:1.4,pvD:88},
 };
 function softCurve(k){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(x*k);}return c;}
 function stopAudio(){ if(_ac){try{_ac.close();}catch(e){} _ac=null;} playing=false; }
@@ -150,7 +151,7 @@ function render(){
   playSlurBtn=h('button',{class:'btn',disabled:'true',html:'🗣️ ฟังเสียงพูดไม่ชัด (จำลอง)',onclick:playSlurred});
 
   const seg=h('div',{class:'seg'});
-  [['mild','เบา'],['mid','กลาง'],['sev','หนัก']].forEach(([k,l])=>{
+  [['mild','เบา'],['mid','กลาง'],['sev','หนัก'],['max','สุดขีด']].forEach(([k,l])=>{
     const b=h('button',{class:severity===k?'on':'',onclick:()=>{severity=k;[...seg.children].forEach(c=>c.className='');b.className='on';}},l);
     seg.append(b);
   });
