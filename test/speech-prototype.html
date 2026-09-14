@@ -68,9 +68,9 @@ const wordList=['แมงมุม','ทับทิม','ฟื้นฟู','
 const sentenceList=['คุณสบายดีหรือ','ฉันกลับบ้านทันทีหลังเลิกงาน','เมื่อคืนฉันได้ยินเขาพูดทางวิทยุ'];
 
 const PRESET={
-  mild:{rate:0.90,lp:1400,muffle:5,nasal:3,notch:-6,consonant:-10,drive:1.3,tremF:5.0,tremD:0.12,comp:3,wet:0.30,master:1.4, warbF:1.1,warbD:0.004},
-  mid: {rate:0.85,lp:1050,muffle:7,nasal:5,notch:-8,consonant:-14,drive:1.9,tremF:5.5,tremD:0.18,comp:5,wet:0.42,master:1.55,warbF:1.3,warbD:0.006},
-  sev: {rate:0.80,lp:880, muffle:9,nasal:7,notch:-10,consonant:-17,drive:2.6,tremF:6.0,tremD:0.24,comp:7,wet:0.52,master:1.7, warbF:1.5,warbD:0.008},
+  mild:{rate:0.90,lp:1400,muffle:6,nasal:3,notch:-6,consonant:-10,drive:1.3,tremF:5.0,tremD:0.12,comp:3,wet:0.30,master:1.4, warbF:0.9,warbD:0.007,tongue:4},
+  mid: {rate:0.85,lp:1050,muffle:8,nasal:5,notch:-8,consonant:-14,drive:1.9,tremF:5.5,tremD:0.18,comp:5,wet:0.42,master:1.55,warbF:0.8,warbD:0.011,tongue:6},
+  sev: {rate:0.80,lp:880, muffle:10,nasal:7,notch:-10,consonant:-17,drive:2.6,tremF:6.0,tremD:0.24,comp:7,wet:0.52,master:1.7, warbF:0.7,warbD:0.015,tongue:8},
 };
 function softCurve(k){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(x*k);}return c;}
 function stopAudio(){ if(_ac){try{_ac.close();}catch(e){} _ac=null;} playing=false; }
@@ -91,6 +91,7 @@ function playSlurred(){ if(!recBuf||recording||playing)return; stopAudio(); play
 
   const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=p.lp; lp.Q.value=0.7;
   const muffle=ac.createBiquadFilter(); muffle.type='peaking'; muffle.frequency.value=650; muffle.gain.value=p.muffle; muffle.Q.value=1.2;
+  const tongue=ac.createBiquadFilter(); tongue.type='peaking'; tongue.frequency.value=1200; tongue.gain.value=p.tongue; tongue.Q.value=1.5;
   const nasal=ac.createBiquadFilter(); nasal.type='peaking'; nasal.frequency.value=280; nasal.gain.value=p.nasal; nasal.Q.value=1.0;
   const notch=ac.createBiquadFilter(); notch.type='peaking'; notch.frequency.value=1000; notch.gain.value=p.notch; notch.Q.value=2.5;
   const cons=ac.createBiquadFilter(); cons.type='peaking'; cons.frequency.value=3000; cons.gain.value=p.consonant; cons.Q.value=1.0;
@@ -106,7 +107,7 @@ function playSlurred(){ if(!recBuf||recording||playing)return; stopAudio(); play
   const wet=ac.createGain(); wet.gain.value=p.wet;
   const master=ac.createGain(); master.gain.value=p.master;
 
-  s.connect(lp); lp.connect(muffle); muffle.connect(nasal); nasal.connect(notch); notch.connect(cons); cons.connect(shaper); shaper.connect(comp); comp.connect(trem);
+  s.connect(lp); lp.connect(muffle); muffle.connect(tongue); tongue.connect(nasal); nasal.connect(notch); notch.connect(cons); cons.connect(shaper); shaper.connect(comp); comp.connect(trem);
   trem.connect(master);
   trem.connect(dl); dl.connect(wet); wet.connect(master);
   master.connect(ac.destination);
