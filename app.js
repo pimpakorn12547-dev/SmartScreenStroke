@@ -302,7 +302,7 @@ const GUIDE={
   B:{icon:'🧍',title:'จำลองอาการทรงตัว',desc:'ขยับศีรษะช้าๆ แล้วสังเกตว่าโลกรอบตัว “หมุน/โคลงเคลง” อย่างไร'},
   E:{icon:'👁️',title:'จำลองการมองเห็น',desc:'มองหน้าจอ แล้วสังเกตความผิดปกติของการมองเห็น'},
   F:{icon:'😊',title:'จำลองใบหน้าเบี้ยว',desc:'หันหน้าเข้ากล้องตรงๆ ระบบจะจำลองอาการหน้าตกข้างหนึ่ง'},
-  A:{icon:'🤲',title:'จำลองแขนอ่อนแรง',desc:'ยืนห่างให้เห็นช่วงตัว แล้วยกแขนสองข้างขึ้น'},
+  A:{icon:'🤲',title:'จำลองแขนอ่อนแรง',desc:'วางแขนแนบลำตัวทั้งสองข้าง หันหน้าเข้ากล้อง'},
 };
 function camShell(item, onBack){
   const screen=h('div',{class:'screen',style:{background:'#000'}});
@@ -577,44 +577,67 @@ function drawNetError(cctx,W,H){
 function startArms(ui){
   const {video,canvas,controls,setStatus}=ui;
   const cctx=canvas.getContext('2d');
-  let lm=null, ready=false, useMP=true, map=null;
-  const weak=Math.random()<0.5?'right':'left'; const weakTxt=weak==='right'?'ขวา':'ซ้าย';
+  const tmp=document.createElement('canvas'); const tctx=tmp.getContext('2d');
+  let lm=null, map=null, ready=false, useMP=true, side='right', droopT=0, lastTs=0;
+  const DROOP=0.60;
   setStatus('🤲 กำลังโหลดตัวตรวจจับท่าทาง...');
-  controls.append(h('div',{class:'ctl',style:{textAlign:'center'},html:'ยืนให้เห็นช่วงตัว แล้วยกแขนสองข้างขึ้น — สังเกตแขนข้าง<b style="color:#F5831F">'+weakTxt+'</b>ที่จะตกลง'}));
-  getPoseLM().then(()=>{ready=true;setStatus('🤲 จำลอง: แขนข้าง'+weakTxt+'อ่อนแรง — ยกแขนสองข้างขึ้น');}).catch(()=>{useMP=false;ready=true;setStatus('🤲 '+NET_MSG);});
-  function P(i){ const p=lm[i]; const q=mapPt(map,p.x,p.y); q.v=p.visibility; return q; }
-  function limb(a,b,c,col,wid){ cctx.strokeStyle=col; cctx.lineWidth=wid; cctx.lineCap='round'; cctx.lineJoin='round';
-    cctx.beginPath(); cctx.moveTo(a.x,a.y); cctx.lineTo(b.x,b.y); cctx.lineTo(c.x,c.y); cctx.stroke();
-    cctx.fillStyle=col; cctx.beginPath(); cctx.arc(c.x,c.y,wid*0.72,0,7); cctx.fill(); }
-  function frame(){
-    syncCanvas(canvas);
-    const W=canvas.width,H=canvas.height;
-    if(useMP&&ready&&_poseLM){ try{ const r=_poseLM.detectForVideo(video,performance.now()); if(r&&r.landmarks&&r.landmarks[0]) lm=r.landmarks[0]; }catch(e){} }
-    // Base layer = กล้องจริง 100% (ไม่หรี่ ไม่วาดหุ่นทึบบังคน) ; Top layer = เส้น AR สั้นๆ เฉพาะแขน
-    cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,W,H);
+  const sw=h('div',{class:'seg'});
+  [['left','แขนซ้ายตก'],['right','แขนขวาตก']].forEach(([k,l])=>{
+    const b=h('button',{class:side===k?'on':'',onclick:()=>{side=k;[...sw.children].forEach(c=>c.className='');b.className='on';droopT=0;lastTs=0;}},l);
+    sw.append(b);
+  });
+  controls.append(sw);
+  getPoseLM().then(()=>{ready=true;setStatus('🤲 วางแขนแนบลำตัว หันหน้าเข้ากล้อง แล้วดูอาการ (แขนข้างที่เลือกจะค่อยๆ ตกลง)');})
+    .catch(()=>{useMP=false;ready=true;setStatus('🤲 '+NET_MSG);});
+  function P(i){const p=lm[i];return mapPt(map,p.x,p.y);}
+  function frame(ts){
+    syncCanvas(canvas); const W=canvas.width,H=canvas.height;
+    if(tmp.width!==W){tmp.width=W;tmp.height=H;}
+    if(useMP&&ready&&_poseLM){try{const r=_poseLM.detectForVideo(video,performance.now());if(r&&r.landmarks&&r.landmarks[0])lm=r.landmarks[0];}catch(e){}}
+    cctx.setTransform(1,0,0,1,0,0);cctx.clearRect(0,0,W,H);
     map=drawCover(cctx,video,W,H,CAM_ZOOM_ARMS,true);
-    if(useMP&&lm&&map){
-      const Ls=P(11),Rs=P(12),Le=P(13),Re=P(14),Lw=P(15),Rw=P(16);
-      const wid=Math.max(8,H*0.022);
-      // แขนข้างแข็งแรง = วาดเส้นตามจริง (เขียว) เฉพาะแขน
-      const strongLeft = weak!=='left';
-      if(strongLeft) limb(Ls,Le,Lw,'rgba(46,230,166,.95)',wid); else limb(Rs,Re,Rw,'rgba(46,230,166,.95)',wid);
-      // แขนข้างอ่อนแรง (Simulation) = คำนวณพิกัดจำลองให้ดิ่งลงจากไหล่เสมอ แม้ผู้ใช้ยกจริง (แดง)
-      const sh = weak==='left'?Ls:Rs;
-      const raised = (weak==='left'?(Lw.y<Ls.y-H*0.03):(Rw.y<Rs.y-H*0.03));
-      const dir = weak==='left'?1:-1;
-      const el={x:sh.x+dir*W*0.05, y:sh.y+H*0.15};
-      const wr={x:sh.x+dir*W*0.015, y:sh.y+H*0.31};
-      limb(sh,el,wr,'#ff3b3b',wid);
-      cctx.fillStyle='#ff3b3b'; cctx.font='900 '+Math.round(H*0.05)+'px Nunito'; cctx.textAlign='center'; cctx.textBaseline='alphabetic'; cctx.fillText('↓',wr.x,wr.y+H*0.075);
-      labelBox(cctx,'แขน'+weakTxt+'อ่อนแรง',wr.x,Math.min(H-H*0.06,wr.y+H*0.09),Math.round(H*0.03));
-      const msg = raised ? 'แขนข้าง'+weakTxt+'ยกไม่ขึ้น' : 'ยกแขนสองข้างขึ้นพร้อมกัน';
-      const fs=Math.round(H*0.032); cctx.font='700 '+fs+'px Sarabun'; cctx.textAlign='center'; cctx.textBaseline='alphabetic';
-      const bw=cctx.measureText(msg).width+28, bh=fs+16, by=H*0.04;
-      cctx.fillStyle= raised?'rgba(245,131,31,.96)':'rgba(0,0,0,.55)';
-      cctx.beginPath(); (cctx.roundRect?cctx.roundRect(W/2-bw/2,by,bw,bh,10):cctx.rect(W/2-bw/2,by,bw,bh)); cctx.fill();
-      cctx.fillStyle='#fff'; cctx.fillText(msg,W/2,by+fs+3);
-    } else if(ready){ drawNetError(cctx,W,H); }
+    if(!map){_raf=requestAnimationFrame(frame);return;}
+    if(!useMP){if(ready)drawNetError(cctx,W,H);_raf=requestAnimationFrame(frame);return;}
+    if(!ready||!lm){_raf=requestAnimationFrame(frame);return;}
+    if(!lastTs)lastTs=ts;const dt=Math.min(0.05,(ts-lastTs)/1000);lastTs=ts;
+    droopT=Math.min(1,droopT+dt/2.4);
+    const e=droopT<0.5?2*droopT*droopT:1-Math.pow(-2*droopT+2,2)/2;
+    const L={sh:P(11),el:P(13),wr:P(15),hip:P(23)};
+    const R={sh:P(12),el:P(14),wr:P(16),hip:P(24)};
+    const arms=[L,R].sort((a,b)=>a.sh.x-b.sh.x);
+    const arm=side==='left'?arms[0]:arms[1];
+    const bodyCx=(L.sh.x+R.sh.x)/2;
+    const shoulderW=Math.abs(L.sh.x-R.sh.x)||W*0.30;
+    const armHalfW=Math.max(W*0.07,shoulderW*0.34);
+    const topY=arm.sh.y-shoulderW*0.28;
+    const bottomY=Math.max(arm.wr.y,arm.hip.y)+shoulderW*0.18;
+    const armLen=Math.max(30,bottomY-topY);
+    const cxAt=t=>arm.sh.x+(arm.wr.x-arm.sh.x)*Math.max(0,Math.min(1,t));
+    const droopMax=armLen*(0.20+0.30*DROOP);
+    const inwardMax=shoulderW*0.12*DROOP;
+    const xL=Math.min(arm.sh.x,arm.el.x,arm.wr.x)-armHalfW;
+    const xR=Math.max(arm.sh.x,arm.el.x,arm.wr.x)+armHalfW;
+    tctx.setTransform(1,0,0,1,0,0);tctx.clearRect(0,0,W,H);tctx.drawImage(canvas,0,0);
+    const cols=6,rows=11,src=[],dst=[];
+    for(let j=0;j<=rows;j++){src.push([]);dst.push([]);
+      for(let i=0;i<=cols;i++){
+        const x=xL+(xR-xL)*i/cols,y=topY+armLen*j/rows;
+        src[j].push({x,y});
+        const t=(y-topY)/armLen; const cx=cxAt(t);
+        const halfAt=armHalfW*(1-0.5*t);
+        const wx=Math.exp(-Math.pow((x-cx)/halfAt,2)*2.0);
+        const tf=Math.min(1,t/0.15); const topFeather=tf*tf*(3-2*tf);
+        const wt=topFeather*(0.60+0.40*Math.pow(Math.max(0,t),1.3));
+        const w=wt*wx*e; const dy=droopMax*w; const dx=inwardMax*w*Math.sign(bodyCx-cx);
+        dst[j].push({x:x+dx,y:y+dy});
+      }
+    }
+    for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+      const a=src[j][i],b=src[j][i+1],c=src[j+1][i],d=src[j+1][i+1];
+      const A=dst[j][i],B=dst[j][i+1],C=dst[j+1][i],D=dst[j+1][i+1];
+      drawTriTex(cctx,tmp,[a,b,d],[A,B,D]); drawTriTex(cctx,tmp,[a,d,c],[A,D,C]);
+    }
+    cctx.setTransform(1,0,0,1,0,0);
     _raf=requestAnimationFrame(frame);
   }
   _raf=requestAnimationFrame(frame);
@@ -653,16 +676,24 @@ function launchSpeech(){
   function playNormal(){ if(!recBuf||recording||playing)return; playing=true; updBtns(); const ac=new (window.AudioContext||window.webkitAudioContext)(); _audio=ac; const s=ac.createBufferSource(); s.buffer=recBuf; s.connect(ac.destination); s.onended=()=>{playing=false;updBtns();}; s.start(); }
   // "พูดไม่ชัด": จูนตามเสียงตัวอย่าง dysarthria จริง — มัวจัด เน้นย่านต่ำ ตัดพยัญชนะ ฟังไม่รู้เรื่อง + ยืดช้านิดเดียว
   function playSlurred(){ if(!recBuf||recording||playing)return; playing=true; updBtns();
+    const P={rate:0.78,lp:880,muffle:11,nasal:7,notch:-10,consonant:-17,drive:2.6,tremF:6.0,tremD:0.24,comp:7,wet:0.30,master:1.7,warbF:0.6,warbD:0.014,tongue:14,pvF:1.6,pvD:58};
     const ac=new (window.AudioContext||window.webkitAudioContext)(); _audio=ac;
-    const s=ac.createBufferSource(); s.buffer=recBuf; s.playbackRate.value=0.9;      // ยืด/ช้าลงเล็กน้อย
-    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=0.9;   // มัวจัด (พลังงานเสียงจริงเกือบทั้งหมด <500Hz)
-    const lp2=ac.createBiquadFilter(); lp2.type='lowpass'; lp2.frequency.value=1500; lp2.Q.value=0.5; // ชันขึ้น
-    const low=ac.createBiquadFilter(); low.type='peaking'; low.frequency.value=300; low.gain.value=5; low.Q.value=0.8; // ดันย่านต่ำ 125–400Hz ที่เด่นในตัวอย่าง
-    const dip=ac.createBiquadFilter(); dip.type='peaking'; dip.frequency.value=2500; dip.gain.value=-13; dip.Q.value=1.0; // กดพยัญชนะ = ฟังไม่รู้เรื่อง
-    const dl=ac.createDelay(); dl.delayTime.value=0.045; const fb=ac.createGain(); fb.gain.value=0.22; dl.connect(fb); fb.connect(dl); // เบลอ/ลิ้นพัน
-    const wet=ac.createGain(); wet.gain.value=0.4; const master=ac.createGain(); master.gain.value=1.5; // ชดเชยพลังงานที่หายไป
-    s.connect(lp); lp.connect(lp2); lp2.connect(low); low.connect(dip); dip.connect(master);
-    dip.connect(dl); dl.connect(wet); wet.connect(master); master.connect(ac.destination);
+    const s=ac.createBufferSource(); s.buffer=recBuf; s.playbackRate.value=P.rate;
+    if(s.detune){const pv=ac.createOscillator();pv.type='sine';pv.frequency.value=P.pvF;const pvg=ac.createGain();pvg.gain.value=P.pvD;pv.connect(pvg);pvg.connect(s.detune);pv.start();}
+    const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=P.lp;lp.Q.value=0.7;
+    const muffle=ac.createBiquadFilter();muffle.type='peaking';muffle.frequency.value=650;muffle.gain.value=P.muffle;muffle.Q.value=1.2;
+    const tongue=ac.createBiquadFilter();tongue.type='peaking';tongue.frequency.value=1200;tongue.gain.value=P.tongue;tongue.Q.value=1.5;
+    const nasal=ac.createBiquadFilter();nasal.type='peaking';nasal.frequency.value=280;nasal.gain.value=P.nasal;nasal.Q.value=1.0;
+    const notch=ac.createBiquadFilter();notch.type='peaking';notch.frequency.value=1000;notch.gain.value=P.notch;notch.Q.value=2.5;
+    const cons=ac.createBiquadFilter();cons.type='peaking';cons.frequency.value=3000;cons.gain.value=P.consonant;cons.Q.value=1.0;
+    const shaper=ac.createWaveShaper();{const n=1024,cv=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;cv[i]=Math.tanh(x*P.drive);}shaper.curve=cv;}shaper.oversample='2x';
+    const comp=ac.createDynamicsCompressor();comp.threshold.value=-30;comp.ratio.value=P.comp;comp.attack.value=0.01;comp.release.value=0.25;
+    const trem=ac.createGain();trem.gain.value=1.0;const lfo=ac.createOscillator();lfo.type='sine';lfo.frequency.value=P.tremF;const lg=ac.createGain();lg.gain.value=P.tremD;lfo.connect(lg);lg.connect(trem.gain);lfo.start();
+    const dl=ac.createDelay();dl.delayTime.value=0.065;const fb=ac.createGain();fb.gain.value=0.16;dl.connect(fb);fb.connect(dl);
+    const wl=ac.createOscillator();wl.type='sine';wl.frequency.value=P.warbF;const wd=ac.createGain();wd.gain.value=P.warbD;wl.connect(wd);wd.connect(dl.delayTime);wl.start();
+    const wet=ac.createGain();wet.gain.value=P.wet;const master=ac.createGain();master.gain.value=P.master;
+    s.connect(lp);lp.connect(muffle);muffle.connect(tongue);tongue.connect(nasal);nasal.connect(notch);notch.connect(cons);cons.connect(shaper);shaper.connect(comp);comp.connect(trem);
+    trem.connect(master);trem.connect(dl);dl.connect(wet);wet.connect(master);master.connect(ac.destination);
     s.onended=()=>{playing=false;updBtns();}; s.start();
   }
   playRaw.addEventListener('click',playNormal); playSlur.addEventListener('click',playSlurred);
