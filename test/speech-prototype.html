@@ -68,9 +68,9 @@ const wordList=['แมงมุม','ทับทิม','ฟื้นฟู','
 const sentenceList=['คุณสบายดีหรือ','ฉันกลับบ้านทันทีหลังเลิกงาน','เมื่อคืนฉันได้ยินเขาพูดทางวิทยุ'];
 
 const PRESET={
-  mild:{rate:0.95,lp:1800,nasal:3,notch:-5,consonant:-6, drive:1.2,tremF:5.0,tremD:0.10,comp:3,wet:0.15,master:1.3},
-  mid: {rate:0.90,lp:1400,nasal:5,notch:-7,consonant:-10,drive:1.8,tremF:5.5,tremD:0.16,comp:5,wet:0.26,master:1.45},
-  sev: {rate:0.85,lp:1100,nasal:7,notch:-9,consonant:-13,drive:2.5,tremF:6.0,tremD:0.22,comp:7,wet:0.35,master:1.6},
+  mild:{rate:0.90,lp:1500,muffle:4,nasal:3,notch:-5,consonant:-8, drive:1.3,tremF:5.0,tremD:0.11,comp:3,wet:0.22,master:1.35},
+  mid: {rate:0.85,lp:1150,muffle:6,nasal:5,notch:-7,consonant:-12,drive:1.9,tremF:5.5,tremD:0.17,comp:5,wet:0.34,master:1.5},
+  sev: {rate:0.80,lp:950, muffle:8,nasal:7,notch:-9,consonant:-15,drive:2.6,tremF:6.0,tremD:0.23,comp:7,wet:0.44,master:1.65},
 };
 function softCurve(k){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(x*k);}return c;}
 function stopAudio(){ if(_ac){try{_ac.close();}catch(e){} _ac=null;} playing=false; }
@@ -90,6 +90,7 @@ function playSlurred(){ if(!recBuf||recording||playing)return; stopAudio(); play
   const s=ac.createBufferSource(); s.buffer=recBuf; s.playbackRate.value=p.rate;
 
   const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=p.lp; lp.Q.value=0.7;
+  const muffle=ac.createBiquadFilter(); muffle.type='peaking'; muffle.frequency.value=650; muffle.gain.value=p.muffle; muffle.Q.value=1.2;
   const nasal=ac.createBiquadFilter(); nasal.type='peaking'; nasal.frequency.value=280; nasal.gain.value=p.nasal; nasal.Q.value=1.0;
   const notch=ac.createBiquadFilter(); notch.type='peaking'; notch.frequency.value=1000; notch.gain.value=p.notch; notch.Q.value=2.5;
   const cons=ac.createBiquadFilter(); cons.type='peaking'; cons.frequency.value=3000; cons.gain.value=p.consonant; cons.Q.value=1.0;
@@ -100,11 +101,11 @@ function playSlurred(){ if(!recBuf||recording||playing)return; stopAudio(); play
   const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=p.tremF;
   const lfoGain=ac.createGain(); lfoGain.gain.value=p.tremD; lfo.connect(lfoGain); lfoGain.connect(trem.gain); lfo.start();
 
-  const dl=ac.createDelay(); dl.delayTime.value=0.05; const fb=ac.createGain(); fb.gain.value=0.2; dl.connect(fb); fb.connect(dl);
+  const dl=ac.createDelay(); dl.delayTime.value=0.065; const fb=ac.createGain(); fb.gain.value=0.28; dl.connect(fb); fb.connect(dl);
   const wet=ac.createGain(); wet.gain.value=p.wet;
   const master=ac.createGain(); master.gain.value=p.master;
 
-  s.connect(lp); lp.connect(nasal); nasal.connect(notch); notch.connect(cons); cons.connect(shaper); shaper.connect(comp); comp.connect(trem);
+  s.connect(lp); lp.connect(muffle); muffle.connect(nasal); nasal.connect(notch); notch.connect(cons); cons.connect(shaper); shaper.connect(comp); comp.connect(trem);
   trem.connect(master);
   trem.connect(dl); dl.connect(wet); wet.connect(master);
   master.connect(ac.destination);
