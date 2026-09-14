@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Prototype: Speech พูดไม่ชัด (dysarthria)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1B3B9B;--blue-d:#0d2266;--blue-l:#2952d3;--orange:#F5831F;--danger:#c0392b;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{font-family:'Sarabun',sans-serif;background:linear-gradient(175deg,#1B3B9B,#0d2266);color:#fff;overflow-x:hidden;}
+#app{min-height:100%;display:flex;flex-direction:column;}
+.font-n{font-family:'Nunito',sans-serif;}
+
+.hdr{display:flex;align-items:center;gap:12px;padding:calc(14px + env(safe-area-inset-top)) 18px 12px;}
+.round{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.hdr b{font-size:18px;font-weight:700;display:block;}
+.hdr span{font-size:12.5px;color:rgba(255,255,255,.6);}
+.tag{display:inline-block;background:rgba(245,131,31,.16);border:1px solid rgba(245,131,31,.45);border-radius:12px;padding:7px 14px;font-size:12.5px;margin:0 18px 6px;}
+
+.body{flex:1;padding:6px 18px 24px;}
+.card{background:rgba(255,255,255,.08);border-radius:18px;padding:16px;margin-bottom:14px;}
+.status{font-size:13px;color:rgba(255,255,255,.85);text-align:center;min-height:20px;margin-bottom:12px;line-height:1.5;}
+.btn{width:100%;min-height:54px;border-radius:15px;border:none;cursor:pointer;font-family:'Sarabun';font-size:16px;font-weight:700;color:#fff;
+  display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;
+  background:linear-gradient(135deg,var(--orange),#ff9a45);box-shadow:0 5px 20px rgba(245,131,31,.32);transition:.15s;}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.btn.blue{background:linear-gradient(135deg,var(--blue-l),#3a63e6);box-shadow:0 5px 20px rgba(27,59,155,.32);}
+.btn.violet{background:linear-gradient(135deg,#8e7cff,#6f5bd6);box-shadow:none;}
+.btn.sm{min-height:46px;font-size:14px;}
+.btn.rec-on{background:linear-gradient(135deg,#c0392b,#e74c3c);}
+.stack{display:flex;flex-direction:column;gap:9px;}
+.seg{display:flex;gap:6px;background:rgba(0,0,0,.28);border-radius:13px;padding:5px;margin-bottom:14px;}
+.seg button{flex:1;border:none;background:transparent;color:rgba(255,255,255,.7);font-family:'Sarabun';font-weight:700;font-size:14px;padding:10px 4px;border-radius:9px;cursor:pointer;}
+.seg button.on{background:var(--orange);color:#fff;}
+.lbl{font-size:13px;font-weight:700;color:rgba(255,255,255,.85);margin:2px 0 8px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.chip{background:rgba(255,255,255,.12);border-radius:10px;padding:9px 14px;font-size:16px;font-weight:700;}
+.sent{background:rgba(255,255,255,.1);border-radius:12px;padding:12px 15px;margin-bottom:8px;font-size:16px;font-weight:600;line-height:1.5;}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:#fff;animation:blink 1s infinite;}
+@keyframes blink{50%{opacity:.25}}
+.disc{font-size:10.5px;color:rgba(255,255,255,.5);text-align:center;line-height:1.5;margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const app=document.getElementById('app');
+function h(tag,props,...kids){const e=document.createElement(tag);
+  if(props)for(const k in props){
+    if(k==='style')Object.assign(e.style,props[k]);
+    else if(k==='class')e.className=props[k];
+    else if(k.startsWith('on')&&typeof props[k]==='function')e.addEventListener(k.slice(2).toLowerCase(),props[k]);
+    else if(k==='html')e.innerHTML=props[k];
+    else if(props[k]!=null)e.setAttribute(k,props[k]);
+  }
+  for(const kid of kids.flat()){if(kid==null||kid===false)continue;e.append(kid.nodeType?kid:document.createTextNode(kid));}
+  return e;}
+
+/* ---------- state ---------- */
+let micStream=null, mediaR=null, chunks=[], recBuf=null, recording=false, playing=false, _ac=null;
+let severity='mid';
+
+const wordList=['แมงมุม','ทับทิม','ฟื้นฟู','ขอบคุณ','รื่นเริง','ใบบัวบก'];
+const sentenceList=['คุณสบายดีหรือ','ฉันกลับบ้านทันทีหลังเลิกงาน','เมื่อคืนฉันได้ยินเขาพูดทางวิทยุ'];
+
+const PRESET={
+  mild:{rate:0.95,lp:1800,nasal:3,notch:-5,consonant:-6, drive:1.2,tremF:5.0,tremD:0.10,comp:3,wet:0.15,master:1.3},
+  mid: {rate:0.90,lp:1400,nasal:5,notch:-7,consonant:-10,drive:1.8,tremF:5.5,tremD:0.16,comp:5,wet:0.26,master:1.45},
+  sev: {rate:0.85,lp:1100,nasal:7,notch:-9,consonant:-13,drive:2.5,tremF:6.0,tremD:0.22,comp:7,wet:0.35,master:1.6},
+};
+function softCurve(k){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(x*k);}return c;}
+function stopAudio(){ if(_ac){try{_ac.close();}catch(e){} _ac=null;} playing=false; }
+
+async function getMic(){ if(micStream&&micStream.active)return micStream; micStream=await navigator.mediaDevices.getUserMedia({audio:true}); return micStream; }
+async function decode(blob){ const buf=await blob.arrayBuffer(); const ac=new (window.AudioContext||window.webkitAudioContext)(); recBuf=await ac.decodeAudioData(buf); ac.close(); }
+
+function playNormal(){ if(!recBuf||recording||playing)return; stopAudio(); playing=true; upd();
+  const ac=new (window.AudioContext||window.webkitAudioContext)(); _ac=ac;
+  const s=ac.createBufferSource(); s.buffer=recBuf; s.connect(ac.destination);
+  s.onended=()=>{playing=false;stopAudio();upd();}; s.start();
+}
+
+function playSlurred(){ if(!recBuf||recording||playing)return; stopAudio(); playing=true; upd();
+  const p=PRESET[severity];
+  const ac=new (window.AudioContext||window.webkitAudioContext)(); _ac=ac;
+  const s=ac.createBufferSource(); s.buffer=recBuf; s.playbackRate.value=p.rate;
+
+  const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=p.lp; lp.Q.value=0.7;
+  const nasal=ac.createBiquadFilter(); nasal.type='peaking'; nasal.frequency.value=280; nasal.gain.value=p.nasal; nasal.Q.value=1.0;
+  const notch=ac.createBiquadFilter(); notch.type='peaking'; notch.frequency.value=1000; notch.gain.value=p.notch; notch.Q.value=2.5;
+  const cons=ac.createBiquadFilter(); cons.type='peaking'; cons.frequency.value=3000; cons.gain.value=p.consonant; cons.Q.value=1.0;
+  const shaper=ac.createWaveShaper(); shaper.curve=softCurve(p.drive); shaper.oversample='2x';
+  const comp=ac.createDynamicsCompressor(); comp.threshold.value=-30; comp.ratio.value=p.comp; comp.attack.value=0.01; comp.release.value=0.25;
+
+  const trem=ac.createGain(); trem.gain.value=1.0;
+  const lfo=ac.createOscillator(); lfo.type='sine'; lfo.frequency.value=p.tremF;
+  const lfoGain=ac.createGain(); lfoGain.gain.value=p.tremD; lfo.connect(lfoGain); lfoGain.connect(trem.gain); lfo.start();
+
+  const dl=ac.createDelay(); dl.delayTime.value=0.05; const fb=ac.createGain(); fb.gain.value=0.2; dl.connect(fb); fb.connect(dl);
+  const wet=ac.createGain(); wet.gain.value=p.wet;
+  const master=ac.createGain(); master.gain.value=p.master;
+
+  s.connect(lp); lp.connect(nasal); nasal.connect(notch); notch.connect(cons); cons.connect(shaper); shaper.connect(comp); comp.connect(trem);
+  trem.connect(master);
+  trem.connect(dl); dl.connect(wet); wet.connect(master);
+  master.connect(ac.destination);
+
+  s.onended=()=>{playing=false;stopAudio();upd();}; s.start();
+}
+
+function speakSlur(){ if(recording||playing)return;
+  try{ if(!window.speechSynthesis)return; speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(sentenceList[1]); u.lang='th-TH'; u.rate=0.5; u.pitch=0.3; u.volume=1;
+    const th=(speechSynthesis.getVoices()||[]).find(v=>/th/i.test(v.lang)); if(th)u.voice=th;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+let statusEl, recBtn, playRawBtn, playSlurBtn;
+function upd(){
+  const canPlay=!!recBuf&&!recording&&!playing;
+  recBtn.disabled=playing;
+  playRawBtn.disabled=!canPlay; playSlurBtn.disabled=!canPlay;
+  recBtn.className='btn'+(recording?' rec-on':'');
+  recBtn.innerHTML = recording?'⏹ หยุดอัด':(recBuf?'🎤 อัดใหม่':'🎤 เริ่มอัดเสียง');
+}
+async function startRec(){
+  try{ const s=await getMic(); chunks=[]; mediaR=new MediaRecorder(s);
+    mediaR.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    mediaR.onstop=async()=>{ const blob=new Blob(chunks,{type:mediaR.mimeType||'audio/webm'});
+      statusEl.textContent='กำลังประมวลผลเสียง...'; try{ await decode(blob); statusEl.textContent='อัดเสียงแล้ว — กดฟังเทียบเสียงปกติ vs พูดไม่ชัด (อัดใหม่ได้เลย ไม่ต้องขออนุญาตอีก)'; }catch(e){ statusEl.textContent='ประมวลผลเสียงไม่ได้ ลองใหม่'; } upd(); };
+    mediaR.start(); recording=true; statusEl.innerHTML='<span style="display:inline-flex;gap:8px;align-items:center;justify-content:center"><span class="rec-dot"></span> กำลังอัด... พูดประโยคด้านล่างเลย!</span>'; upd();
+  }catch(e){ statusEl.textContent='เข้าถึงไมโครโฟนไม่ได้ (ต้องอนุญาต + เปิดผ่าน HTTPS)'; }
+}
+function stopRec(){ if(mediaR&&mediaR.state!=='inactive')mediaR.stop(); recording=false; upd(); }
+
+function render(){
+  app.innerHTML='';
+  statusEl=h('div',{class:'status'},'กดปุ่มไมค์ แล้วอ่านประโยคด้านล่าง จากนั้นกดฟังเทียบ');
+  recBtn=h('button',{class:'btn',onclick:()=>{ if(playing)return; recording?stopRec():startRec(); }});
+  playRawBtn=h('button',{class:'btn blue',disabled:'true',html:'▶ ฟังเสียงปกติ (ที่คุณอัด)',onclick:playNormal});
+  playSlurBtn=h('button',{class:'btn',disabled:'true',html:'🗣️ ฟังเสียงพูดไม่ชัด (จำลอง)',onclick:playSlurred});
+
+  const seg=h('div',{class:'seg'});
+  [['mild','เบา'],['mid','กลาง'],['sev','หนัก']].forEach(([k,l])=>{
+    const b=h('button',{class:severity===k?'on':'',onclick:()=>{severity=k;[...seg.children].forEach(c=>c.className='');b.className='on';}},l);
+    seg.append(b);
+  });
+
+  app.append(
+    h('div',{class:'hdr'},
+      h('button',{class:'round',html:'‹',onclick:()=>location.reload()}),
+      h('div',null,h('b',null,'🗣️ ทดสอบเสียงพูดไม่ชัด'),h('span',null,'Speech · จำลองตามหลัก dysarthria (TORGO)'))),
+    h('div',{class:'tag'},'🧪 เวอร์ชันทดลอง — โมดูล Speech'),
+    h('div',{class:'body'},
+      h('div',{class:'card'},
+        statusEl,
+        h('div',{style:{marginBottom:'10px'}}, recBtn),
+        h('div',{class:'lbl',style:{marginTop:'4px'}},'ระดับความรุนแรงของอาการ (สำหรับเสียงพูดไม่ชัด)'),
+        seg,
+        h('div',{class:'stack'}, playRawBtn, playSlurBtn),
+        h('div',{style:{height:'9px'}}),
+        h('button',{class:'btn violet sm',html:'🔊 ตัวอย่างเสียงพูดไม่ชัด (ไม่ต้องอัด)',onclick:speakSlur})
+      ),
+      h('div',{class:'lbl'},'① ลองอ่านออกเสียงคำเหล่านี้:'),
+      h('div',{class:'chips'}, ...wordList.map(w=>h('div',{class:'chip'},w))),
+      h('div',{class:'lbl'},'② แล้วอ่านประโยคเหล่านี้:'),
+      ...sentenceList.map(w=>h('div',{class:'sent'},w)),
+      h('div',{class:'disc'},'⚠️ สื่อจำลองเพื่อการเรียนรู้เท่านั้น ไม่ใช่การวินิจฉัย · ต้องเปิดผ่าน HTTPS จึงจะใช้ไมค์ได้')
+    )
+  );
+  upd();
+}
+window.addEventListener('pagehide',()=>{ stopAudio(); if(micStream){micStream.getTracks().forEach(t=>t.stop());} });
+render();
+</script>
+</body>
+</html>
