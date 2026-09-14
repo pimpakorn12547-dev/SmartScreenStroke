@@ -228,7 +228,8 @@ function launchArms(){
         src[j].push({x,y});
         const t=(y-topY)/armLen;                    // 0 บน(ไหล่) .. 1 ล่าง(มือ)
         const cx=cxAt(t);
-        const wx=Math.exp(-Math.pow((x-cx)/armHalfW,2)*1.8);   // แนวนอนกว้างขึ้น = คลุมหัวไหล่ทั้งก้อน
+        const halfAt=armHalfW*(1-0.5*t);                       // กว้างที่หัวไหล่ แคบลงช่วงปลายแขน (กันของรอบข้างย้วย)
+        const wx=Math.exp(-Math.pow((x-cx)/halfAt,2)*2.0);     // แนวนอน: คลุมทั้งหัวไหล่ แต่แคบลงล่างๆ
         const tf=Math.min(1,t/0.15); const topFeather=tf*tf*(3-2*tf);  // ไล่ 0→1 ช่วงบน (เหนือไหล่/คอ) กันรอยต่อ/ช่องว่าง
         const wt=topFeather*(0.60+0.40*Math.pow(Math.max(0,t),1.3));    // ทั้งหัวไหล่ลงพร้อมกัน ปลายแขนตกมากสุด
         const w=wt*wx*e;
